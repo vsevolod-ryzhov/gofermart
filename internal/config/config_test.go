@@ -7,7 +7,6 @@ import (
 )
 
 func TestNewConfig_DefaultValues(t *testing.T) {
-	// Сохраняем оригинальные значения и восстанавливаем после теста
 	originalArgs := os.Args
 	originalEnv := os.Environ()
 	defer func() {
@@ -21,9 +20,7 @@ func TestNewConfig_DefaultValues(t *testing.T) {
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	}()
 
-	// Очищаем переменные окружения
 	os.Clearenv()
-	// Устанавливаем тестовые аргументы
 	os.Args = []string{"test"}
 
 	config := NewConfig()
@@ -51,9 +48,7 @@ func TestNewConfig_FlagValues(t *testing.T) {
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	}()
 
-	// Очищаем переменные окружения
 	os.Clearenv()
-	// Устанавливаем тестовые аргументы с флагами
 	os.Args = []string{"test", "-a", "localhost:9090", "-d", "postgres://user:pass@localhost/db"}
 
 	config := NewConfig()
@@ -81,9 +76,7 @@ func TestNewConfig_EnvVariables(t *testing.T) {
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	}()
 
-	// Очищаем переменные окружения
 	os.Clearenv()
-	// Устанавливаем тестовые переменные окружения
 	os.Setenv("RUN_ADDRESS", "0.0.0.0:8080")
 	os.Setenv("DATABASE_DSN", "postgres://test:test@localhost/testdb")
 
@@ -115,18 +108,14 @@ func TestNewConfig_EnvOverridesFlags(t *testing.T) {
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	}()
 
-	// Очищаем переменные окружения
 	os.Clearenv()
-	// Устанавливаем тестовые переменные окружения
 	os.Setenv("RUN_ADDRESS", "0.0.0.0:3000")
 	os.Setenv("DATABASE_DSN", "env_dsn")
 
-	// Устанавливаем тестовые аргументы с флагами
 	os.Args = []string{"test", "-a", "localhost:9090", "-d", "flag_dsn"}
 
 	config := NewConfig()
 
-	// Переменные окружения должны переопределять флаги
 	if config.AppPort != "0.0.0.0:3000" {
 		t.Errorf("Expected AppPort to be '0.0.0.0:3000' from env, got '%s'", config.AppPort)
 	}
@@ -150,28 +139,22 @@ func TestNewConfig_PartialEnv(t *testing.T) {
 		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	}()
 
-	// Очищаем переменные окружения
 	os.Clearenv()
-	// Устанавливаем только одну переменную окружения
 	os.Setenv("RUN_ADDRESS", "127.0.0.1:8080")
 
-	// Устанавливаем флаги
 	os.Args = []string{"test", "-d", "flag_dsn"}
 
 	config := NewConfig()
 
-	// RUN_ADDRESS должно быть из env
 	if config.AppPort != "127.0.0.1:8080" {
 		t.Errorf("Expected AppPort to be '127.0.0.1:8080', got '%s'", config.AppPort)
 	}
 
-	// DATABASE_DSN должно быть из флага (т.к. env не установлена)
 	if config.DatabaseDSN != "flag_dsn" {
 		t.Errorf("Expected DatabaseDSN to be 'flag_dsn', got '%s'", config.DatabaseDSN)
 	}
 }
 
-// Вспомогательная функция для разделения строки по разделителю
 func cut(s, sep string) (string, string, bool) {
 	if i := index(s, sep); i >= 0 {
 		return s[:i], s[i+len(sep):], true
@@ -179,7 +162,6 @@ func cut(s, sep string) (string, string, bool) {
 	return "", "", false
 }
 
-// Вспомогательная функция для поиска подстроки
 func index(s, substr string) int {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {

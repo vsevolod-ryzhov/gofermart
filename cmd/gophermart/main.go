@@ -6,13 +6,26 @@ import (
 
 	"github.com/vsevolod-ryzhov/gofermart/internal/config"
 	"github.com/vsevolod-ryzhov/gofermart/internal/handler"
+	"github.com/vsevolod-ryzhov/gofermart/internal/repository"
+	"github.com/vsevolod-ryzhov/gofermart/internal/service"
 )
 
 func main() {
-	config := config.NewConfig()
+	configInstance := config.NewConfig()
+
+	repo, repoErr := repository.NewPostgresRepository(configInstance.DatabaseDSN)
+
+	if repoErr != nil {
+		panic(repoErr)
+	}
+	defer repo.Close()
+
+	auth := service.NewAuthService(repo)
+	handlerInstance := handler.NewHandler(auth)
+
 	srv := &http.Server{
-		Addr:         config.AppPort,
-		Handler:      handler.MakeHandler(),
+		Addr:         configInstance.AppPort,
+		Handler:      handlerInstance.MakeHandler(),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}

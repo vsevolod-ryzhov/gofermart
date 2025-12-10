@@ -5,7 +5,18 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/vsevolod-ryzhov/gofermart/internal/service"
 )
+
+type Handler struct {
+	auth *service.AuthService
+}
+
+func NewHandler(auth *service.AuthService) *Handler {
+	return &Handler{
+		auth: auth,
+	}
+}
 
 func handleRegister(res http.ResponseWriter, req *http.Request) {
 	//TODO: to be implemented
@@ -46,7 +57,7 @@ func handleIndex(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusOK)
 }
 
-func MakeHandler() *chi.Mux {
+func (h *Handler) MakeHandler() *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
