@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -64,6 +65,29 @@ func NewPostgresRepository(connectionString string) (*PostgresRepository, error)
 
 func (r *PostgresRepository) Close() error {
 	err := r.db.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *PostgresRepository) UserExists(ctx context.Context, login string) (bool, error) {
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM users WHERE login = $1)`
+
+	err := r.db.QueryRowContext(ctx, query, login).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
+
+func (r *PostgresRepository) CreateUser(ctx context.Context, login, password string) error {
+	query := `INSERT INTO users (login, password) VALUES ($1, $2)`
+
+	_, err := r.db.ExecContext(ctx, query, login, password)
 	if err != nil {
 		return err
 	}
