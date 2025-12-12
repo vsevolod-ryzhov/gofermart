@@ -1,5 +1,6 @@
 create table users
 (
-    login    varchar(255) not null constraint login primary key,
+    id       serial not null constraint id primary key,
+    login    varchar(255) not null constraint login_unique unique,
     password varchar(64)
 );

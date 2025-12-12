@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -11,6 +12,12 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/github"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+type User struct {
+	ID       int
+	Login    string
+	Password string
+}
 
 type PostgresRepository struct {
 	db *sql.DB
@@ -84,13 +91,32 @@ func (r *PostgresRepository) UserExists(ctx context.Context, login string) (bool
 	return exists, nil
 }
 
-func (r *PostgresRepository) CreateUser(ctx context.Context, login, password string) error {
-	query := `INSERT INTO users (login, password) VALUES ($1, $2)`
+func (r *PostgresRepository) CreateUser(ctx context.Context, login, password string) (int, error) {
+	var userID int
+	query := `INSERT INTO users (login, password) VALUES ($1, $2) RETURNING id`
 
-	_, err := r.db.ExecContext(ctx, query, login, password)
+	err := r.db.QueryRowContext(ctx, query, login, password).Scan(&userID)
+
+	return userID, err
+}
+
+func (r *PostgresRepository) GetUserByLogin(ctx context.Context, login string) (*User, error) {
+	var user User
+	query := `SELECT id, login, password 
+              FROM users WHERE login = $1`
+
+	err := r.db.QueryRowContext(ctx, query, login).Scan(
+		&user.ID,
+		&user.Login,
+		&user.Password,
+	)
+
 	if err != nil {
-		return err
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, sql.ErrNoRows
+		}
+		return nil, err
 	}
 
-	return nil
+	return &user, nil
 }

@@ -14,13 +14,14 @@ func main() {
 	configInstance := config.NewConfig()
 
 	repo, repoErr := repository.NewPostgresRepository(configInstance.DatabaseDSN)
-
 	if repoErr != nil {
 		panic(repoErr)
 	}
 	defer repo.Close()
 
-	auth := service.NewAuthService(repo)
+	jwtService := service.NewJWTService(configInstance)
+
+	auth := service.NewAuthService(repo, jwtService)
 	handlerInstance := handler.NewHandler(auth)
 
 	srv := &http.Server{
