@@ -13,7 +13,7 @@ type contextKey string
 
 const UserIDKey contextKey = "userID"
 
-func respondWithJSONError(w http.ResponseWriter, code int, message string) {
+func RespondWithJSONError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{
@@ -42,13 +42,13 @@ func Auth(authService *service.AuthService) func(http.Handler) http.Handler {
 			}
 
 			if tokenString == "" {
-				respondWithJSONError(w, http.StatusUnauthorized, "Unauthorized")
+				RespondWithJSONError(w, http.StatusUnauthorized, "Unauthorized")
 				return
 			}
 
 			userID, err := authService.ValidateToken(tokenString)
 			if err != nil {
-				respondWithJSONError(w, http.StatusUnauthorized, "Invalid or expired token")
+				RespondWithJSONError(w, http.StatusUnauthorized, "Invalid or expired token")
 				return
 			}
 

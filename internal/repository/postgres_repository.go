@@ -11,6 +11,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/golang-migrate/migrate/v4/source/github"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/vsevolod-ryzhov/gofermart/internal/model"
 )
 
 type User struct {
@@ -119,4 +120,27 @@ func (r *PostgresRepository) GetUserByLogin(ctx context.Context, login string) (
 	}
 
 	return &user, nil
+}
+
+func (r *PostgresRepository) GetUserOrders(ctx context.Context, userID int) (*model.UserOrders, error) {
+	query := `SELECT number, status, updated_at, accrual FROM orders WHERE user_id = $1 ORDER BY created_at DESC`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders model.UserOrders
+	for rows.Next() {
+		var record model.UserOrder
+
+		if err := rows.Scan(&record.Number, &record.Status, &record.UpdatedAt, &record.Accrual); err != nil {
+			return nil, err
+		}
+
+		orders = append(orders, record)
+	}
+
+	return &orders, nil
 }

@@ -9,18 +9,20 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	myMiddleware "github.com/vsevolod-ryzhov/gofermart/internal/middleware"
+	authMiddleware "github.com/vsevolod-ryzhov/gofermart/internal/middleware"
 	"github.com/vsevolod-ryzhov/gofermart/internal/model"
 	"github.com/vsevolod-ryzhov/gofermart/internal/service"
 )
 
 type Handler struct {
-	auth *service.AuthService
+	auth   *service.AuthService
+	orders *service.OrdersService
 }
 
-func NewHandler(auth *service.AuthService) *Handler {
+func NewHandler(auth *service.AuthService, orders *service.OrdersService) *Handler {
 	return &Handler{
-		auth: auth,
+		auth:   auth,
+		orders: orders,
 	}
 }
 
@@ -123,7 +125,28 @@ func (h *Handler) handleOrderUpload(res http.ResponseWriter, req *http.Request) 
 
 func (h *Handler) handleGetOrders(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
-	//TODO: to be implemented
+
+	userID, ok := authMiddleware.GetUserID(req)
+	if !ok {
+		authMiddleware.RespondWithJSONError(res, http.StatusUnauthorized, "Unauthorized")
+	}
+
+	orders, err := h.orders.GetUserOrders(req.Context(), userID)
+	if err != nil {
+		authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if len(*orders) == 0 {
+		authMiddleware.RespondWithJSONError(res, http.StatusNoContent, "No content")
+		return
+	}
+
+	if err := json.NewEncoder(res).Encode(orders); err != nil {
+		authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	res.WriteHeader(http.StatusOK)
 }
 
@@ -157,7 +180,7 @@ func (h *Handler) MakeHandler() *chi.Mux {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(myMiddleware.Auth(h.auth))
+		r.Use(authMiddleware.Auth(h.auth))
 		r.Post("/api/user/orders", h.handleOrderUpload)
 		r.Get("/api/user/orders", h.handleGetOrders)
 		r.Get("/api/user/balance", h.handleGetBalance)

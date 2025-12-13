@@ -22,7 +22,8 @@ func main() {
 	jwtService := service.NewJWTService(configInstance)
 
 	auth := service.NewAuthService(repo, jwtService)
-	handlerInstance := handler.NewHandler(auth)
+	orders := service.NewOrdersService(repo)
+	handlerInstance := handler.NewHandler(auth, orders)
 
 	srv := &http.Server{
 		Addr:         configInstance.AppPort,
