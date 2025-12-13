@@ -8,7 +8,7 @@ import (
 
 type Config struct {
 	AppPort      string
-	DatabaseDSN  string
+	DatabaseURI  string
 	JWTSecretKey string
 	JWTTTL       time.Duration
 }
@@ -25,14 +25,14 @@ func NewConfig() *Config {
 	flag.Parse()
 
 	config.AppPort = appPort
-	config.DatabaseDSN = databaseDSN
+	config.DatabaseURI = databaseDSN
 	config.JWTTTL = 24 * time.Hour
 
 	if envRunAddr, exists := os.LookupEnv("RUN_ADDRESS"); exists {
 		config.AppPort = envRunAddr
 	}
-	if envDatabaseDSN, exists := os.LookupEnv("DATABASE_DSN"); exists {
-		config.DatabaseDSN = envDatabaseDSN
+	if envDatabaseDSN, exists := os.LookupEnv("DATABASE_URI"); exists {
+		config.DatabaseURI = envDatabaseDSN
 	}
 	if envKey, exists := os.LookupEnv("JWT_SECRET_KEY"); exists {
 		config.JWTSecretKey = envKey

@@ -13,7 +13,7 @@ import (
 func main() {
 	configInstance := config.NewConfig()
 
-	repo, repoErr := repository.NewPostgresRepository(configInstance.DatabaseDSN)
+	repo, repoErr := repository.NewPostgresRepository(configInstance.DatabaseURI)
 	if repoErr != nil {
 		panic(repoErr)
 	}

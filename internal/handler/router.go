@@ -116,26 +116,31 @@ func (h *Handler) handleLogin(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) handleOrderUpload(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
 	//TODO: to be implemented
 	res.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) handleGetOrders(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
 	//TODO: to be implemented
 	res.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) handleGetBalance(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
 	//TODO: to be implemented
 	res.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) handleBalanceWithdraw(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
 	//TODO: to be implemented
 	res.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) handleWithdrawList(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
 	//TODO: to be implemented
 	res.WriteHeader(http.StatusOK)
 }

@@ -29,8 +29,8 @@ func TestNewConfig_DefaultValues(t *testing.T) {
 		t.Errorf("Expected AppPort to be 'localhost:8080', got '%s'", config.AppPort)
 	}
 
-	if config.DatabaseDSN != "" {
-		t.Errorf("Expected DatabaseDSN to be empty, got '%s'", config.DatabaseDSN)
+	if config.DatabaseURI != "" {
+		t.Errorf("Expected DatabaseURI to be empty, got '%s'", config.DatabaseURI)
 	}
 }
 
@@ -57,8 +57,8 @@ func TestNewConfig_FlagValues(t *testing.T) {
 		t.Errorf("Expected AppPort to be 'localhost:9090', got '%s'", config.AppPort)
 	}
 
-	if config.DatabaseDSN != "postgres://user:pass@localhost/db" {
-		t.Errorf("Expected DatabaseDSN to be 'postgres://user:pass@localhost/db', got '%s'", config.DatabaseDSN)
+	if config.DatabaseURI != "postgres://user:pass@localhost/db" {
+		t.Errorf("Expected DatabaseURI to be 'postgres://user:pass@localhost/db', got '%s'", config.DatabaseURI)
 	}
 }
 
@@ -78,7 +78,7 @@ func TestNewConfig_EnvVariables(t *testing.T) {
 
 	os.Clearenv()
 	os.Setenv("RUN_ADDRESS", "0.0.0.0:8080")
-	os.Setenv("DATABASE_DSN", "postgres://test:test@localhost/testdb")
+	os.Setenv("DATABASE_URI", "postgres://test:test@localhost/testdb")
 
 	// Устанавливаем минимальные аргументы
 	os.Args = []string{"test"}
@@ -89,8 +89,8 @@ func TestNewConfig_EnvVariables(t *testing.T) {
 		t.Errorf("Expected AppPort to be '0.0.0.0:8080', got '%s'", config.AppPort)
 	}
 
-	if config.DatabaseDSN != "postgres://test:test@localhost/testdb" {
-		t.Errorf("Expected DatabaseDSN to be 'postgres://test:test@localhost/testdb', got '%s'", config.DatabaseDSN)
+	if config.DatabaseURI != "postgres://test:test@localhost/testdb" {
+		t.Errorf("Expected DatabaseURI to be 'postgres://test:test@localhost/testdb', got '%s'", config.DatabaseURI)
 	}
 }
 
@@ -110,9 +110,9 @@ func TestNewConfig_EnvOverridesFlags(t *testing.T) {
 
 	os.Clearenv()
 	os.Setenv("RUN_ADDRESS", "0.0.0.0:3000")
-	os.Setenv("DATABASE_DSN", "env_dsn")
+	os.Setenv("DATABASE_URI", "env_uri")
 
-	os.Args = []string{"test", "-a", "localhost:9090", "-d", "flag_dsn"}
+	os.Args = []string{"test", "-a", "localhost:9090", "-d", "flag_uri"}
 
 	config := NewConfig()
 
@@ -120,8 +120,8 @@ func TestNewConfig_EnvOverridesFlags(t *testing.T) {
 		t.Errorf("Expected AppPort to be '0.0.0.0:3000' from env, got '%s'", config.AppPort)
 	}
 
-	if config.DatabaseDSN != "env_dsn" {
-		t.Errorf("Expected DatabaseDSN to be 'env_dsn' from env, got '%s'", config.DatabaseDSN)
+	if config.DatabaseURI != "env_uri" {
+		t.Errorf("Expected DatabaseURI to be 'env_uri' from env, got '%s'", config.DatabaseURI)
 	}
 }
 
@@ -142,7 +142,7 @@ func TestNewConfig_PartialEnv(t *testing.T) {
 	os.Clearenv()
 	os.Setenv("RUN_ADDRESS", "127.0.0.1:8080")
 
-	os.Args = []string{"test", "-d", "flag_dsn"}
+	os.Args = []string{"test", "-d", "flag_uri"}
 
 	config := NewConfig()
 
@@ -150,8 +150,8 @@ func TestNewConfig_PartialEnv(t *testing.T) {
 		t.Errorf("Expected AppPort to be '127.0.0.1:8080', got '%s'", config.AppPort)
 	}
 
-	if config.DatabaseDSN != "flag_dsn" {
-		t.Errorf("Expected DatabaseDSN to be 'flag_dsn', got '%s'", config.DatabaseDSN)
+	if config.DatabaseURI != "flag_uri" {
+		t.Errorf("Expected DatabaseURI to be 'flag_uri', got '%s'", config.DatabaseURI)
 	}
 }
 

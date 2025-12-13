@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -11,6 +12,14 @@ import (
 type contextKey string
 
 const UserIDKey contextKey = "userID"
+
+func respondWithJSONError(w http.ResponseWriter, code int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{
+		"error": message,
+	})
+}
 
 func Auth(authService *service.AuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -33,13 +42,13 @@ func Auth(authService *service.AuthService) func(http.Handler) http.Handler {
 			}
 
 			if tokenString == "" {
-				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+				respondWithJSONError(w, http.StatusUnauthorized, "Unauthorized")
 				return
 			}
 
 			userID, err := authService.ValidateToken(tokenString)
 			if err != nil {
-				http.Error(w, `{"error": "Invalid or expired token"}`, http.StatusUnauthorized)
+				respondWithJSONError(w, http.StatusUnauthorized, "Invalid or expired token")
 				return
 			}
 
