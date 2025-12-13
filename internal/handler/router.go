@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -119,8 +122,46 @@ func (h *Handler) handleLogin(res http.ResponseWriter, req *http.Request) {
 
 func (h *Handler) handleOrderUpload(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
-	//TODO: to be implemented
-	res.WriteHeader(http.StatusOK)
+
+	userID, ok := authMiddleware.GetUserID(req)
+	if !ok {
+		authMiddleware.RespondWithJSONError(res, http.StatusUnauthorized, "Unauthorized")
+	}
+
+	var body []byte
+	var err error
+
+	body, err = io.ReadAll(req.Body)
+	if err != nil {
+		authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	orderNumberStr := string(body)
+	orderNumberStr = strings.TrimSpace(orderNumberStr)
+
+	orderNumber, err := strconv.ParseInt(orderNumberStr, 10, 64)
+	if err != nil {
+		authMiddleware.RespondWithJSONError(res, http.StatusBadRequest, "Invalid order number format")
+		return
+	}
+
+	err = h.orders.AddOrder(req.Context(), userID, int(orderNumber))
+	if err != nil {
+		switch err {
+		case service.ErrNumberInvalid:
+			authMiddleware.RespondWithJSONError(res, http.StatusUnprocessableEntity, err.Error())
+		case service.ErrOrderAddedByAnotherUser:
+			authMiddleware.RespondWithJSONError(res, http.StatusConflict, err.Error())
+		case service.ErrOrderAlreadyExists:
+			res.WriteHeader(http.StatusOK)
+		default:
+			authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	res.WriteHeader(http.StatusAccepted)
 }
 
 func (h *Handler) handleGetOrders(res http.ResponseWriter, req *http.Request) {

@@ -24,6 +24,8 @@ type PostgresRepository struct {
 	db *sql.DB
 }
 
+const newOrderStatus = "NEW"
+
 func applyMigrations(db *sql.DB) error {
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
@@ -123,7 +125,7 @@ func (r *PostgresRepository) GetUserByLogin(ctx context.Context, login string) (
 }
 
 func (r *PostgresRepository) GetUserOrders(ctx context.Context, userID int) (*model.UserOrders, error) {
-	query := `SELECT number, status, updated_at, accrual FROM orders WHERE user_id = $1 ORDER BY created_at DESC`
+	query := `SELECT number, user_id, status, updated_at, accrual FROM orders WHERE user_id = $1 ORDER BY created_at DESC`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -135,7 +137,7 @@ func (r *PostgresRepository) GetUserOrders(ctx context.Context, userID int) (*mo
 	for rows.Next() {
 		var record model.UserOrder
 
-		if err := rows.Scan(&record.Number, &record.Status, &record.UpdatedAt, &record.Accrual); err != nil {
+		if err := rows.Scan(&record.Number, &record.UserID, &record.Status, &record.UpdatedAt, &record.Accrual); err != nil {
 			return nil, err
 		}
 
@@ -143,4 +145,30 @@ func (r *PostgresRepository) GetUserOrders(ctx context.Context, userID int) (*mo
 	}
 
 	return &orders, nil
+}
+
+func (r *PostgresRepository) GetOrder(ctx context.Context, orderID int) (*model.UserOrder, error) {
+	var record model.UserOrder
+
+	query := `SELECT number, user_id, status, updated_at, accrual FROM orders WHERE number = $1`
+
+	err := r.db.QueryRowContext(ctx, query, orderID).Scan(&record.Number, &record.UserID, &record.Status, &record.UpdatedAt, &record.Accrual)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, sql.ErrNoRows
+		}
+		return nil, err
+	}
+	return &record, nil
+}
+
+func (r *PostgresRepository) AddOrder(ctx context.Context, orderID, userID int) error {
+	query := `INSERT INTO orders (number, status, user_id) VALUES ($1, $2, $3)`
+
+	_, err := r.db.ExecContext(ctx, query, orderID, newOrderStatus, userID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
