@@ -14,6 +14,7 @@ var (
 	ErrNumberInvalid           = errors.New("invalid number")
 	ErrOrderAlreadyExists      = errors.New("order already exists")
 	ErrOrderAddedByAnotherUser = errors.New("order added by another user")
+	ErrUserInfoNotFound        = errors.New("user info not found")
 )
 
 type OrdersService struct {
@@ -51,6 +52,15 @@ func (o *OrdersService) AddOrder(ctx context.Context, userID, orderID int) error
 	}
 
 	return nil
+}
+
+func (o *OrdersService) GetUserBalanceInfo(ctx context.Context, userID int) (*model.User, error) {
+	user := o.repo.GetUserBalanceInfo(ctx, userID)
+	if user == nil {
+		return nil, ErrUserInfoNotFound
+	}
+
+	return user, nil
 }
 
 func validateOrderNumber(orderNumber int) bool {

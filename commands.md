@@ -29,4 +29,4 @@
 - curl -H "Content-Type: application/json" -H "Cookie: auth_token=INSERT_TOKEN_HERE" 127.0.0.1:8080/api/user/orders -v --compressed
 
 
-curl -H "Content-Type: application/json" -H "Cookie: auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozLCJleHAiOjE3NjU3MTUxODMsImlhdCI6MTc2NTYyODc4M30.PpDsiKixvu02RAW1UpucHNKjHEFib0AcelhxFon6UwY" 127.0.0.1:8080/api/user/orders -v --compressed
+curl -H "Content-Type: application/json" -H "Cookie: auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozLCJleHAiOjE3NjU5MDE0ODUsImlhdCI6MTc2NTgxNTA4NX0.CgXeWQY8qyagIFq9mjecylOQ_jASSS2AsCvEEeR4s-A" 127.0.0.1:8080/api/user/orders -v --compressed

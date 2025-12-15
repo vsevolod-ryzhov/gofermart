@@ -193,7 +193,22 @@ func (h *Handler) handleGetOrders(res http.ResponseWriter, req *http.Request) {
 
 func (h *Handler) handleGetBalance(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
-	//TODO: to be implemented
+
+	userID, ok := authMiddleware.GetUserID(req)
+	if !ok {
+		authMiddleware.RespondWithJSONError(res, http.StatusUnauthorized, "Unauthorized")
+	}
+
+	balance, err := h.orders.GetUserBalanceInfo(req.Context(), userID)
+	if err != nil {
+		authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
+	}
+
+	if err := json.NewEncoder(res).Encode(balance); err != nil {
+		authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	res.WriteHeader(http.StatusOK)
 }
 

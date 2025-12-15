@@ -172,3 +172,26 @@ func (r *PostgresRepository) AddOrder(ctx context.Context, orderID, userID int) 
 
 	return nil
 }
+
+func (r *PostgresRepository) GetUserBalanceInfo(ctx context.Context, userID int) *model.User {
+	var user model.User
+	var balance int
+	user.Withdrawn = 0
+	query := `SELECT balance FROM users WHERE id = $1`
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&balance)
+	if err != nil {
+		return nil
+	}
+	user.Balance = convertStoredMoneyToFloat(balance)
+
+	var withdrawn int
+	query = `SELECT SUM(sum) FROM withdrawals WHERE user_id = $1`
+	_ = r.db.QueryRowContext(ctx, query, userID).Scan(&withdrawn)
+	user.Withdrawn = convertStoredMoneyToFloat(withdrawn)
+
+	return &user
+}
+
+func convertStoredMoneyToFloat(moneyFromDatabase int) float64 {
+	return float64(moneyFromDatabase) / 100
+}
