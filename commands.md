@@ -18,15 +18,12 @@
 - go tool cover -html=cover.out
 - docker-compose up -d
 - docker-compose down
-- go run cmd/gophermart/main.go -d="host=localhost user=postgres_user password=postgres_password dbname=postgres_db sslmode=disable"
+- go run cmd/gophermart/main.go -r="localhost:8081" -d="host=localhost user=postgres_user password=postgres_password dbname=postgres_db sslmode=disable"
 - go build -o cmd/gophermart/gophermart cmd/gophermart/*.go
 - migrate create -ext sql -dir ./migrations -seq <create_tableName_table>
 - migrate -database "postgresql://postgres_user:postgres_password@localhost:5432/postgres_db?sslmode=disable" -path ./migrations up
 
 ## Endpoints examples
-- curl -X POST -H "Content-Type: application/json" -d '{"login":"admin", "password":"pwd1"}' 127.0.0.1:8080/api/user/register -v --compressed
-- curl -X POST -H "Content-Type: application/json" -d '{"login":"admin", "password":"pwd1"}' 127.0.0.1:8080/api/user/login -v --compressed
-- curl -H "Content-Type: application/json" -H "Cookie: auth_token=INSERT_TOKEN_HERE" 127.0.0.1:8080/api/user/orders -v --compressed
-
-
-curl -H "Content-Type: application/json" -H "Cookie: auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozLCJleHAiOjE3NjU5MDE0ODUsImlhdCI6MTc2NTgxNTA4NX0.CgXeWQY8qyagIFq9mjecylOQ_jASSS2AsCvEEeR4s-A" 127.0.0.1:8080/api/user/orders -v --compressed
+- curl -X POST -H "Content-Type: application/json" -r="localhost:8081" -d '{"login":"admin", "password":"pwd1"}' 127.0.0.1:8080/api/user/register -v --compressed
+- curl -X POST -H "Content-Type: application/json" -r="localhost:8081" -d '{"login":"admin", "password":"pwd1"}' 127.0.0.1:8080/api/user/login -v --compressed
+- curl -H "Content-Type: application/json" -r="localhost:8081" -H "Cookie: auth_token=INSERT_TOKEN_HERE" 127.0.0.1:8080/api/user/orders -v --compressed

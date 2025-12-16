@@ -25,6 +25,12 @@ type PostgresRepository struct {
 }
 
 const newOrderStatus = "NEW"
+const processingOrderStatus = "PROCESSING"
+
+func getPendingStatuses() [2]string {
+	var ret = [...]string{newOrderStatus, processingOrderStatus}
+	return ret
+}
 
 func applyMigrations(db *sql.DB) error {
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
@@ -124,8 +130,8 @@ func (r *PostgresRepository) GetUserByLogin(ctx context.Context, login string) (
 	return &user, nil
 }
 
-func (r *PostgresRepository) GetUserOrders(ctx context.Context, userID int) (*model.UserOrders, error) {
-	query := `SELECT number, user_id, status, updated_at, accrual FROM orders WHERE user_id = $1 ORDER BY created_at DESC`
+func (r *PostgresRepository) GetUserOrders(ctx context.Context, userID int) (*model.UserDisplayOrders, error) {
+	query := `SELECT number, user_id, status, updated_at, COALESCE(accrual, -1) as accrual FROM orders WHERE user_id = $1 ORDER BY created_at DESC`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -133,14 +139,17 @@ func (r *PostgresRepository) GetUserOrders(ctx context.Context, userID int) (*mo
 	}
 	defer rows.Close()
 
-	var orders model.UserOrders
+	var orders model.UserDisplayOrders
 	for rows.Next() {
-		var record model.UserOrder
-
-		if err := rows.Scan(&record.Number, &record.UserID, &record.Status, &record.UpdatedAt, &record.Accrual); err != nil {
+		var record model.UserDisplayOrder
+		var balance int
+		if err := rows.Scan(&record.Number, &record.UserID, &record.Status, &record.UpdatedAt, &balance); err != nil {
 			return nil, err
 		}
-
+		if balance != -1 {
+			value := convertStoredMoneyToFloat(balance)
+			record.Accrual = &value
+		}
 		orders = append(orders, record)
 	}
 
@@ -192,6 +201,59 @@ func (r *PostgresRepository) GetUserBalanceInfo(ctx context.Context, userID int)
 	return &user
 }
 
+func (r *PostgresRepository) GetPendingOrders(ctx context.Context) (*model.UserOrders, error) {
+	query := `SELECT number, user_id, status, updated_at, accrual FROM orders WHERE status IN ($1, $2)`
+	rows, err := r.db.QueryContext(ctx, query, newOrderStatus, processingOrderStatus)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders model.UserOrders
+	for rows.Next() {
+		var record model.UserOrder
+
+		if err := rows.Scan(&record.Number, &record.UserID, &record.Status, &record.UpdatedAt, &record.Accrual); err != nil {
+			return nil, err
+		}
+
+		orders = append(orders, record)
+	}
+
+	return &orders, nil
+}
+
+func (r *PostgresRepository) UpdateOrderStatus(ctx context.Context, userID, orderID int, status string, accrual float64) error {
+	query := `UPDATE orders SET status = $1, accrual = $2 WHERE number = $3 and user_id = $4`
+
+	intAccrual := convertFloatToStoredMoney(accrual)
+
+	txn, txnErr := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if txnErr != nil {
+		return txnErr
+	}
+	defer txn.Rollback()
+
+	_, err := r.db.ExecContext(ctx, query, status, intAccrual, orderID, userID)
+	if err != nil {
+		return err
+	}
+
+	query = `UPDATE users SET balance = balance + $1 WHERE id = $2`
+	_, err = r.db.ExecContext(ctx, query, intAccrual, userID)
+	if err != nil {
+		return err
+	}
+
+	txn.Commit()
+
+	return nil
+}
+
 func convertStoredMoneyToFloat(moneyFromDatabase int) float64 {
 	return float64(moneyFromDatabase) / 100
+}
+
+func convertFloatToStoredMoney(moneyFromDatabase float64) int {
+	return int(moneyFromDatabase * 100)
 }

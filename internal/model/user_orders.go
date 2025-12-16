@@ -12,4 +12,14 @@ type UserOrder struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type UserDisplayOrder struct {
+	Number    int       `json:"number,string"`
+	UserID    int       `json:"user_id"`
+	Status    string    `json:"status"`
+	Accrual   *float64  `json:"accrual,omitempty"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type UserOrders []UserOrder
+
+type UserDisplayOrders []UserDisplayOrder
