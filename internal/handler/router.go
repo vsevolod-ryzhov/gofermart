@@ -214,7 +214,56 @@ func (h *Handler) handleGetBalance(res http.ResponseWriter, req *http.Request) {
 
 func (h *Handler) handleBalanceWithdraw(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
-	//TODO: to be implemented
+
+	userID, ok := authMiddleware.GetUserID(req)
+	if !ok {
+		authMiddleware.RespondWithJSONError(res, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	var requestModel model.WithdrawRequest
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&requestModel); err != nil {
+		fmt.Println(err)
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	orderNumber, err := strconv.ParseInt(requestModel.Order, 10, 64)
+	if err != nil {
+		authMiddleware.RespondWithJSONError(res, http.StatusBadRequest, "Invalid order number format")
+		return
+	}
+
+	if !h.orders.ValidateOrderNumber(int(orderNumber)) {
+		authMiddleware.RespondWithJSONError(res, http.StatusUnprocessableEntity, "Invalid order number format")
+		return
+	}
+
+	balance, err := h.orders.GetUserBalanceInfo(req.Context(), userID)
+	if err != nil {
+		authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	//sum, _ := strconv.ParseFloat(strings.TrimSpace(requestModel.Sum), 64)
+
+	if balance.Balance < requestModel.Sum {
+		authMiddleware.RespondWithJSONError(res, http.StatusPaymentRequired, "Insufficient balance")
+		return
+	}
+
+	err = h.orders.ApplyWithdrawal(req.Context(), userID, int(orderNumber), requestModel.Sum)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrNumberInvalid):
+			authMiddleware.RespondWithJSONError(res, http.StatusPaymentRequired, "Insufficient balance")
+		default:
+			authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
 	res.WriteHeader(http.StatusOK)
 }
 

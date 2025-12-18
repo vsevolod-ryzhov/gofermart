@@ -59,7 +59,7 @@ func (o *OrdersService) GetUserOrders(ctx context.Context, userID int) (*model.U
 }
 
 func (o *OrdersService) AddOrder(ctx context.Context, userID, orderID int) error {
-	if !validateOrderNumber(orderID) {
+	if !o.ValidateOrderNumber(orderID) {
 		return ErrNumberInvalid
 	}
 
@@ -145,6 +145,10 @@ func (o *OrdersService) processOrder(order model.UserOrder) error {
 	return o.repo.UpdateOrderStatus(context.Background(), order.UserID, order.Number, result.Status, result.Accrual)
 }
 
-func validateOrderNumber(orderNumber int) bool {
+func (o *OrdersService) ValidateOrderNumber(orderNumber int) bool {
 	return luhn.Valid(orderNumber)
+}
+
+func (o *OrdersService) ApplyWithdrawal(ctx context.Context, userID, orderID int, sum float64) error {
+	return o.repo.CreateWithdrawal(ctx, userID, orderID, sum)
 }

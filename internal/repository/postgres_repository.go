@@ -11,6 +11,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/golang-migrate/migrate/v4/source/github"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	appErrors "github.com/vsevolod-ryzhov/gofermart/internal/errors"
 	"github.com/vsevolod-ryzhov/gofermart/internal/model"
 )
 
@@ -246,6 +247,50 @@ func (r *PostgresRepository) UpdateOrderStatus(ctx context.Context, userID, orde
 	}
 
 	txn.Commit()
+
+	return nil
+}
+
+func (r *PostgresRepository) CreateWithdrawal(ctx context.Context, userID, orderNumber int, sumFloat float64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	sum := convertFloatToStoredMoney(sumFloat)
+
+	var currentBalance int
+	queryCheck := `SELECT balance FROM users WHERE id = $1 FOR UPDATE`
+	err = tx.QueryRowContext(ctx, queryCheck, userID).Scan(&currentBalance)
+	if err != nil {
+		return err
+	}
+
+	if currentBalance < sum {
+		return appErrors.ErrNotEnoughMoney
+	}
+
+	queryInsert := `INSERT INTO withdrawals (user_id, order_number, sum) VALUES ($1, $2, $3)`
+	_, err = tx.ExecContext(ctx, queryInsert, userID, orderNumber, sum)
+	if err != nil {
+		return err
+	}
+
+	queryUpdate := `UPDATE users SET balance = balance - $1 WHERE id = $2`
+	_, err = tx.ExecContext(ctx, queryUpdate, sum, userID)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
 
 	return nil
 }
