@@ -32,6 +32,10 @@ func TestNewConfig_DefaultValues(t *testing.T) {
 	if config.DatabaseURI != "" {
 		t.Errorf("Expected DatabaseURI to be empty, got '%s'", config.DatabaseURI)
 	}
+
+	if config.AccrualPort != "" {
+		t.Errorf("Expected AccrualPort to be empty, got '%s'", config.AccrualPort)
+	}
 }
 
 func TestNewConfig_FlagValues(t *testing.T) {
@@ -49,7 +53,7 @@ func TestNewConfig_FlagValues(t *testing.T) {
 	}()
 
 	os.Clearenv()
-	os.Args = []string{"test", "-a", "localhost:9090", "-d", "postgres://user:pass@localhost/db"}
+	os.Args = []string{"test", "-a", "localhost:9090", "-d", "postgres://user:pass@localhost/db", "-r", "localhost:8081"}
 
 	config := NewConfig()
 
@@ -59,6 +63,10 @@ func TestNewConfig_FlagValues(t *testing.T) {
 
 	if config.DatabaseURI != "postgres://user:pass@localhost/db" {
 		t.Errorf("Expected DatabaseURI to be 'postgres://user:pass@localhost/db', got '%s'", config.DatabaseURI)
+	}
+
+	if config.AccrualPort != "localhost:8081" {
+		t.Errorf("Expected AccrualPort to be 'localhost:8081', got '%s'", config.AccrualPort)
 	}
 }
 
@@ -79,6 +87,7 @@ func TestNewConfig_EnvVariables(t *testing.T) {
 	os.Clearenv()
 	os.Setenv("RUN_ADDRESS", "0.0.0.0:8080")
 	os.Setenv("DATABASE_URI", "postgres://test:test@localhost/testdb")
+	os.Setenv("ACCRUAL_SYSTEM_ADDRESS", "localhost:8081")
 
 	// Устанавливаем минимальные аргументы
 	os.Args = []string{"test"}
@@ -91,6 +100,10 @@ func TestNewConfig_EnvVariables(t *testing.T) {
 
 	if config.DatabaseURI != "postgres://test:test@localhost/testdb" {
 		t.Errorf("Expected DatabaseURI to be 'postgres://test:test@localhost/testdb', got '%s'", config.DatabaseURI)
+	}
+
+	if config.AccrualPort != "localhost:8081" {
+		t.Errorf("Expected AccrualPort to be 'localhost:8081', got '%s'", config.AccrualPort)
 	}
 }
 
@@ -111,8 +124,9 @@ func TestNewConfig_EnvOverridesFlags(t *testing.T) {
 	os.Clearenv()
 	os.Setenv("RUN_ADDRESS", "0.0.0.0:3000")
 	os.Setenv("DATABASE_URI", "env_uri")
+	os.Setenv("ACCRUAL_SYSTEM_ADDRESS", "0.0.0.0:3001")
 
-	os.Args = []string{"test", "-a", "localhost:9090", "-d", "flag_uri"}
+	os.Args = []string{"test", "-a", "localhost:9090", "-d", "flag_uri", "-r", "localhost:8081"}
 
 	config := NewConfig()
 
@@ -122,6 +136,10 @@ func TestNewConfig_EnvOverridesFlags(t *testing.T) {
 
 	if config.DatabaseURI != "env_uri" {
 		t.Errorf("Expected DatabaseURI to be 'env_uri' from env, got '%s'", config.DatabaseURI)
+	}
+
+	if config.AccrualPort != "0.0.0.0:3001" {
+		t.Errorf("Expected AccrualPort to be '0.0.0.0:3001' from env, got '%s'", config.DatabaseURI)
 	}
 }
 

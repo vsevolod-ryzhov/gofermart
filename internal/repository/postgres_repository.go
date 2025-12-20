@@ -28,11 +28,6 @@ type PostgresRepository struct {
 const newOrderStatus = "NEW"
 const processingOrderStatus = "PROCESSING"
 
-func getPendingStatuses() [2]string {
-	var ret = [...]string{newOrderStatus, processingOrderStatus}
-	return ret
-}
-
 func applyMigrations(db *sql.DB) error {
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
