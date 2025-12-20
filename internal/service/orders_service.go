@@ -152,3 +152,7 @@ func (o *OrdersService) ValidateOrderNumber(orderNumber int) bool {
 func (o *OrdersService) ApplyWithdrawal(ctx context.Context, userID, orderID int, sum float64) error {
 	return o.repo.CreateWithdrawal(ctx, userID, orderID, sum)
 }
+
+func (o *OrdersService) GetUserWithdrawals(ctx context.Context, userID int) (*model.Withdrawals, error) {
+	return o.repo.GetUserWithdrawals(ctx, userID)
+}

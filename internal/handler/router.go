@@ -246,8 +246,6 @@ func (h *Handler) handleBalanceWithdraw(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	//sum, _ := strconv.ParseFloat(strings.TrimSpace(requestModel.Sum), 64)
-
 	if balance.Balance < requestModel.Sum {
 		authMiddleware.RespondWithJSONError(res, http.StatusPaymentRequired, "Insufficient balance")
 		return
@@ -269,7 +267,28 @@ func (h *Handler) handleBalanceWithdraw(res http.ResponseWriter, req *http.Reque
 
 func (h *Handler) handleWithdrawList(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
-	//TODO: to be implemented
+
+	userID, ok := authMiddleware.GetUserID(req)
+	if !ok {
+		authMiddleware.RespondWithJSONError(res, http.StatusUnauthorized, "Unauthorized")
+	}
+
+	withdrawals, err := h.orders.GetUserWithdrawals(req.Context(), userID)
+	if err != nil {
+		authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if len(*withdrawals) == 0 {
+		authMiddleware.RespondWithJSONError(res, http.StatusNoContent, "No content")
+		return
+	}
+
+	if err := json.NewEncoder(res).Encode(withdrawals); err != nil {
+		authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	res.WriteHeader(http.StatusOK)
 }
 

@@ -295,6 +295,29 @@ func (r *PostgresRepository) CreateWithdrawal(ctx context.Context, userID, order
 	return nil
 }
 
+func (r *PostgresRepository) GetUserWithdrawals(ctx context.Context, userID int) (*model.Withdrawals, error) {
+	query := `SELECT user_id, order_number, sum, processed_at FROM withdrawals WHERE user_id = $1 ORDER BY processed_at DESC`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var withdraws model.Withdrawals
+	for rows.Next() {
+		var record model.Withdrawal
+		var sumInt int
+		if err := rows.Scan(&record.UserID, &record.OrderNumber, &sumInt, &record.ProcessedAt); err != nil {
+			return nil, err
+		}
+		record.Sum = convertStoredMoneyToFloat(sumInt)
+		withdraws = append(withdraws, record)
+	}
+
+	return &withdraws, nil
+}
+
 func convertStoredMoneyToFloat(moneyFromDatabase int) float64 {
 	return float64(moneyFromDatabase) / 100
 }
