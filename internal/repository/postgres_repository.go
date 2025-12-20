@@ -154,6 +154,10 @@ func (r *PostgresRepository) GetUserOrders(ctx context.Context, userID int) (*mo
 		orders = append(orders, record)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return &orders, nil
 }
 
@@ -219,6 +223,10 @@ func (r *PostgresRepository) GetPendingOrders(ctx context.Context) (*model.UserO
 		}
 
 		orders = append(orders, record)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return &orders, nil
@@ -313,6 +321,10 @@ func (r *PostgresRepository) GetUserWithdrawals(ctx context.Context, userID int)
 		}
 		record.Sum = convertStoredMoneyToFloat(sumInt)
 		withdraws = append(withdraws, record)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return &withdraws, nil
