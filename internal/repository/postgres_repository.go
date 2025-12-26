@@ -28,14 +28,14 @@ type PostgresRepository struct {
 const newOrderStatus = "NEW"
 const processingOrderStatus = "PROCESSING"
 
-func applyMigrations(db *sql.DB) error {
+func applyMigrations(db *sql.DB, migrationsPath string) error {
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to create migration driver: %w", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://migrations",
+		fmt.Sprintf("file://%s", migrationsPath),
 		"postgres",
 		driver,
 	)
@@ -50,7 +50,7 @@ func applyMigrations(db *sql.DB) error {
 	return nil
 }
 
-func NewPostgresRepository(connectionString string) (*PostgresRepository, error) {
+func NewPostgresRepository(connectionString, migrationsPath string) (*PostgresRepository, error) {
 	db, err := sql.Open("pgx", connectionString)
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func NewPostgresRepository(connectionString string) (*PostgresRepository, error)
 	}
 	defer migrationDB.Close()
 
-	if err := applyMigrations(migrationDB); err != nil {
+	if err := applyMigrations(migrationDB, migrationsPath); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to apply migrations: %w", err)
 	}

@@ -19,7 +19,7 @@ import (
 func main() {
 	configInstance := config.NewConfig()
 
-	repo, repoErr := repository.NewPostgresRepository(configInstance.DatabaseURI)
+	repo, repoErr := repository.NewPostgresRepository(configInstance.DatabaseURI, "migrations")
 	if repoErr != nil {
 		panic(repoErr)
 	}
