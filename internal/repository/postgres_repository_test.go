@@ -3,15 +3,19 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/ory/dockertest/v3"
+	appErrors "github.com/vsevolod-ryzhov/gofermart/internal/errors"
 )
 
 var db *sql.DB
@@ -186,6 +190,21 @@ func TestOrderOperations(t *testing.T) {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
+	t.Run("NoPendingOrders", func(t *testing.T) {
+		orders, err := repo.GetPendingOrders(ctx)
+		if err != nil {
+			t.Fatalf("Failed to get pending orders: %v", err)
+		}
+
+		if orders == nil {
+			t.Fatal("Expected non-nil orders slice")
+		}
+
+		if len(*orders) != 0 {
+			t.Errorf("Expected 0 orders when no orders exist, got %d", len(*orders))
+		}
+	})
+
 	t.Run("AddOrder", func(t *testing.T) {
 		orderNumber := 123456789
 
@@ -242,6 +261,21 @@ func TestOrderOperations(t *testing.T) {
 		}
 	})
 
+	t.Run("PendingOrders", func(t *testing.T) {
+		orders, err := repo.GetPendingOrders(ctx)
+		if err != nil {
+			t.Fatalf("Failed to get pending orders: %v", err)
+		}
+
+		if orders == nil {
+			t.Fatal("Expected non-nil orders slice")
+		}
+
+		if len(*orders) != 4 {
+			t.Errorf("Expected 4 pending orders, got %d", len(*orders))
+		}
+	})
+
 	t.Run("AddDuplicateOrder", func(t *testing.T) {
 		duplicateOrderNumber := 999999
 
@@ -253,6 +287,145 @@ func TestOrderOperations(t *testing.T) {
 		err = repo.AddOrder(ctx, duplicateOrderNumber, userID)
 		if err == nil {
 			t.Error("Expected error when adding duplicate order")
+		}
+	})
+}
+
+func TestBalanceOperations(t *testing.T) {
+	if db == nil {
+		t.Fatal("Database not initialized")
+	}
+
+	repo := &PostgresRepository{db: db}
+	ctx := context.Background()
+
+	cleanupTestData(t)
+
+	userID, err := repo.CreateUser(ctx, "balance_user", "password")
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
+	t.Run("GetEmptyBalance", func(t *testing.T) {
+		user := repo.GetUserBalanceInfo(ctx, userID)
+		if user == nil {
+			t.Fatal("Failed to get user balance info")
+		}
+
+		if user.Balance != 0 {
+			t.Errorf("Expected balance 0 for new user, got %.2f", user.Balance)
+		}
+
+		if user.Withdrawn != 0 {
+			t.Errorf("Expected withdrawn 0 for new user, got %.2f", user.Withdrawn)
+		}
+	})
+
+	t.Run("UpdateOrderStatusWithAccrual", func(t *testing.T) {
+		orderNumber := 555555
+		err := repo.AddOrder(ctx, orderNumber, userID)
+		if err != nil {
+			t.Fatalf("Failed to add order: %v", err)
+		}
+
+		accrual := 150.75
+		err = repo.UpdateOrderStatus(ctx, userID, orderNumber, "PROCESSED", accrual)
+		if err != nil {
+			t.Fatalf("Failed to update order status: %v", err)
+		}
+
+		user := repo.GetUserBalanceInfo(ctx, userID)
+		if user == nil {
+			t.Fatal("Failed to get user balance info after accrual")
+		}
+
+		expectedBalance := 150.75
+		if user.Balance != expectedBalance {
+			t.Errorf("Expected balance %.2f after accrual, got %.2f", expectedBalance, user.Balance)
+		}
+
+		order, err := repo.GetOrder(ctx, orderNumber)
+		if err != nil {
+			t.Fatalf("Failed to get updated order: %v", err)
+		}
+
+		if order.Status != "PROCESSED" {
+			t.Errorf("Expected order status PROCESSED, got %s", order.Status)
+		}
+
+		if convertStoredMoneyToFloat(*order.Accrual) != accrual {
+			t.Errorf("Expected order accrual %.2f, got %.2f", accrual, convertStoredMoneyToFloat(*order.Accrual))
+		}
+	})
+
+	t.Run("CreateWithdrawal", func(t *testing.T) {
+		orderNumber := 666666
+		err := repo.AddOrder(ctx, orderNumber, userID)
+		if err != nil {
+			t.Fatalf("Failed to add order: %v", err)
+		}
+
+		accrual := 100.25
+		err = repo.UpdateOrderStatus(ctx, userID, orderNumber, "PROCESSED", accrual)
+		if err != nil {
+			t.Fatalf("Failed to update order status: %v", err)
+		}
+
+		withdrawalOrderNumber := 777777
+		withdrawalAmount := 50.50
+		err = repo.CreateWithdrawal(ctx, userID, withdrawalOrderNumber, withdrawalAmount)
+		if err != nil {
+			t.Fatalf("Failed to create withdrawal: %v", err)
+		}
+
+		user := repo.GetUserBalanceInfo(ctx, userID)
+		if user == nil {
+			t.Fatal("Failed to get user balance info after withdrawal")
+		}
+
+		expectedBalance := 200.50
+		if math.Abs(user.Balance-expectedBalance) > 0.01 {
+			t.Errorf("Expected balance %.2f after withdrawal, got %.2f", expectedBalance, user.Balance)
+		}
+
+		expectedWithdrawn := 50.50
+		if math.Abs(user.Withdrawn-expectedWithdrawn) > 0.01 {
+			t.Errorf("Expected withdrawn %.2f, got %.2f", expectedWithdrawn, user.Withdrawn)
+		}
+
+		withdrawals, err := repo.GetUserWithdrawals(ctx, userID)
+		if err != nil {
+			t.Fatalf("Failed to get user withdrawals: %v", err)
+		}
+
+		if withdrawals == nil {
+			t.Fatal("Expected withdrawals slice, got nil")
+		}
+
+		if len(*withdrawals) != 1 {
+			t.Errorf("Expected 1 withdrawal, got %d", len(*withdrawals))
+		}
+
+		if len(*withdrawals) > 0 {
+			withdrawal := (*withdrawals)[0]
+			if withdrawal.Sum != withdrawalAmount {
+				t.Errorf("Expected withdrawal amount %.2f, got %.2f", withdrawalAmount, withdrawal.Sum)
+			}
+
+			if withdrawal.OrderNumber != strconv.Itoa(withdrawalOrderNumber) {
+				t.Errorf("Expected withdrawal order number %d, got %s", withdrawalOrderNumber, withdrawal.OrderNumber)
+			}
+		}
+	})
+
+	t.Run("InsufficientBalance", func(t *testing.T) {
+		err := repo.CreateWithdrawal(ctx, userID, 888888, 50000.00)
+		if err == nil {
+			t.Error("Expected error when withdrawing more than balance")
+		}
+
+		if !errors.Is(err, appErrors.ErrNotEnoughMoney) {
+			t.Errorf("Expected ErrNotEnoughMoney, got %v", err)
 		}
 	})
 }
