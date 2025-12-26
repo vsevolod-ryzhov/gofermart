@@ -146,4 +146,113 @@ func TestUserOperations(t *testing.T) {
 			t.Error("User should exist after creation")
 		}
 	})
+
+	t.Run("CreateDuplicateUser", func(t *testing.T) {
+		_, err := repo.CreateUser(ctx, "duplicateuser", "pass1")
+		if err != nil {
+			t.Fatalf("Failed to create first user: %v", err)
+		}
+
+		_, err = repo.CreateUser(ctx, "duplicateuser", "pass2")
+		if err == nil {
+			t.Error("Expected error when creating duplicate user")
+		}
+	})
+
+	t.Run("GetNonExistentUser", func(t *testing.T) {
+		user, err := repo.GetUserByLogin(ctx, "nonexistent_user_12345")
+		if err != sql.ErrNoRows {
+			t.Errorf("Expected sql.ErrNoRows, got %v", err)
+		}
+
+		if user != nil {
+			t.Error("Expected nil user for non-existent login")
+		}
+	})
+}
+
+func TestOrderOperations(t *testing.T) {
+	if db == nil {
+		t.Fatal("Database not initialized")
+	}
+
+	repo := &PostgresRepository{db: db}
+	ctx := context.Background()
+
+	cleanupTestData(t)
+
+	userID, err := repo.CreateUser(ctx, "order_user", "password")
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
+	t.Run("AddOrder", func(t *testing.T) {
+		orderNumber := 123456789
+
+		err := repo.AddOrder(ctx, orderNumber, userID)
+		if err != nil {
+			t.Fatalf("Failed to add order: %v", err)
+		}
+
+		order, err := repo.GetOrder(ctx, orderNumber)
+		if err != nil {
+			t.Fatalf("Failed to get order: %v", err)
+		}
+
+		if order.Number != orderNumber {
+			t.Errorf("Expected order number %d, got %d", orderNumber, order.Number)
+		}
+
+		if order.UserID != userID {
+			t.Errorf("Expected user ID %d, got %d", userID, order.UserID)
+		}
+
+		if order.Status != newOrderStatus {
+			t.Errorf("Expected status %s, got %s", newOrderStatus, order.Status)
+		}
+	})
+
+	t.Run("GetUserOrders", func(t *testing.T) {
+		orderNumbers := []int{111111, 222222, 333333}
+		for _, orderNum := range orderNumbers {
+			err := repo.AddOrder(ctx, orderNum, userID)
+			if err != nil {
+				t.Fatalf("Failed to add order %d: %v", orderNum, err)
+			}
+		}
+
+		orders, err := repo.GetUserOrders(ctx, userID)
+		if err != nil {
+			t.Fatalf("Failed to get user orders: %v", err)
+		}
+
+		if orders == nil {
+			t.Fatal("Expected orders slice, got nil")
+		}
+
+		if len(*orders) != 4 {
+			t.Errorf("Expected 4 orders, got %d", len(*orders))
+		}
+
+		if len(*orders) > 0 {
+			lastOrder := (*orders)[0]
+			if lastOrder.Number != 333333 {
+				t.Logf("Note: orders might not be sorted by created_at DESC")
+			}
+		}
+	})
+
+	t.Run("AddDuplicateOrder", func(t *testing.T) {
+		duplicateOrderNumber := 999999
+
+		err := repo.AddOrder(ctx, duplicateOrderNumber, userID)
+		if err != nil {
+			t.Fatalf("Failed to add order first time: %v", err)
+		}
+
+		err = repo.AddOrder(ctx, duplicateOrderNumber, userID)
+		if err == nil {
+			t.Error("Expected error when adding duplicate order")
+		}
+	})
 }
