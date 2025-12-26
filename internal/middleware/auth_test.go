@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+const TestUserIDAnotherKey contextKey = "differentKey"
+
 func TestGetUserID(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -48,7 +50,7 @@ func TestGetUserID(t *testing.T) {
 		{
 			name: "DifferentContextKey",
 			setupContext: func() context.Context {
-				return context.WithValue(context.Background(), "differentKey", 456)
+				return context.WithValue(context.Background(), TestUserIDAnotherKey, 456)
 			},
 			expectedID: 0,
 			expectedOk: false,
