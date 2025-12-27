@@ -48,7 +48,6 @@ func (m *MockAuthService) ValidateToken(tokenString string) (int, error) {
 	return args.Int(0), args.Error(1)
 }
 
-// Mock для OrdersService (реализует интерфейс)
 type MockOrdersService struct {
 	mock.Mock
 }
@@ -140,7 +139,9 @@ func TestHandler_handleRegister(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rr.Code)
 		assert.Contains(t, rr.Body.String(), "jwt-token")
 
-		cookies := rr.Result().Cookies()
+		result := rr.Result()
+		defer result.Body.Close()
+		cookies := result.Cookies()
 		assert.NotEmpty(t, cookies)
 
 		mockAuth.AssertExpectations(t)
@@ -224,7 +225,9 @@ func TestHandler_handleLogin(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rr.Code)
 		assert.Contains(t, rr.Body.String(), "login-token")
 
-		cookies := rr.Result().Cookies()
+		result := rr.Result()
+		defer result.Body.Close()
+		cookies := result.Cookies()
 		assert.NotEmpty(t, cookies)
 
 		mockAuth.AssertExpectations(t)
