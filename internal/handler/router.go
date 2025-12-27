@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,12 +18,27 @@ import (
 	"github.com/vsevolod-ryzhov/gofermart/internal/service"
 )
 
-type Handler struct {
-	auth   *service.AuthService
-	orders *service.OrdersService
+type AuthService interface {
+	Register(ctx context.Context, login, password string) (*service.RegisterResponse, error)
+	Login(ctx context.Context, login, password string) (*service.LoginResponse, error)
+	ValidateToken(tokenString string) (int, error)
 }
 
-func NewHandler(auth *service.AuthService, orders *service.OrdersService) *Handler {
+type OrdersService interface {
+	GetUserOrders(ctx context.Context, userID int) (*model.UserDisplayOrders, error)
+	AddOrder(ctx context.Context, userID, orderID int) error
+	GetUserBalanceInfo(ctx context.Context, userID int) (*model.User, error)
+	ApplyWithdrawal(ctx context.Context, userID, orderID int, sum float64) error
+	GetUserWithdrawals(ctx context.Context, userID int) (*model.Withdrawals, error)
+	ValidateOrderNumber(orderNumber int) bool
+}
+
+type Handler struct {
+	auth   AuthService
+	orders OrdersService
+}
+
+func NewHandler(auth AuthService, orders OrdersService) *Handler {
 	return &Handler{
 		auth:   auth,
 		orders: orders,
@@ -126,6 +142,7 @@ func (h *Handler) handleOrderUpload(res http.ResponseWriter, req *http.Request) 
 	userID, ok := authMiddleware.GetUserID(req)
 	if !ok {
 		authMiddleware.RespondWithJSONError(res, http.StatusUnauthorized, "Unauthorized")
+		return
 	}
 
 	var body []byte
@@ -170,6 +187,7 @@ func (h *Handler) handleGetOrders(res http.ResponseWriter, req *http.Request) {
 	userID, ok := authMiddleware.GetUserID(req)
 	if !ok {
 		authMiddleware.RespondWithJSONError(res, http.StatusUnauthorized, "Unauthorized")
+		return
 	}
 
 	orders, err := h.orders.GetUserOrders(req.Context(), userID)
@@ -197,11 +215,13 @@ func (h *Handler) handleGetBalance(res http.ResponseWriter, req *http.Request) {
 	userID, ok := authMiddleware.GetUserID(req)
 	if !ok {
 		authMiddleware.RespondWithJSONError(res, http.StatusUnauthorized, "Unauthorized")
+		return
 	}
 
 	balance, err := h.orders.GetUserBalanceInfo(req.Context(), userID)
 	if err != nil {
 		authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
+		return
 	}
 
 	if err := json.NewEncoder(res).Encode(balance); err != nil {
@@ -271,6 +291,7 @@ func (h *Handler) handleWithdrawList(res http.ResponseWriter, req *http.Request)
 	userID, ok := authMiddleware.GetUserID(req)
 	if !ok {
 		authMiddleware.RespondWithJSONError(res, http.StatusUnauthorized, "Unauthorized")
+		return
 	}
 
 	withdrawals, err := h.orders.GetUserWithdrawals(req.Context(), userID)

@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-
-	"github.com/vsevolod-ryzhov/gofermart/internal/service"
 )
 
 type contextKey string
 
 const UserIDKey contextKey = "userID"
+
+type AuthService interface {
+	ValidateToken(tokenString string) (int, error)
+}
 
 func RespondWithJSONError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
@@ -21,7 +23,7 @@ func RespondWithJSONError(w http.ResponseWriter, code int, message string) {
 	})
 }
 
-func Auth(authService *service.AuthService) func(http.Handler) http.Handler {
+func Auth(authService AuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var tokenString string
