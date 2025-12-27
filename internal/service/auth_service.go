@@ -16,12 +16,23 @@ var (
 	ErrValidationFailed   = errors.New("validation failed")
 )
 
-type AuthService struct {
-	repo       *repository.PostgresRepository
-	jwtService *JWTService
+type AuthRepository interface {
+	UserExists(ctx context.Context, login string) (bool, error)
+	CreateUser(ctx context.Context, login, password string) (int, error)
+	GetUserByLogin(ctx context.Context, login string) (*repository.User, error)
 }
 
-func NewAuthService(repo *repository.PostgresRepository, jwtService *JWTService) *AuthService {
+type TokenService interface {
+	GenerateToken(userID int) (string, error)
+	ParseToken(tokenString string) (*Claims, error)
+}
+
+type AuthService struct {
+	repo       AuthRepository
+	jwtService TokenService
+}
+
+func NewAuthService(repo AuthRepository, jwtService TokenService) *AuthService {
 	return &AuthService{
 		repo:       repo,
 		jwtService: jwtService,
