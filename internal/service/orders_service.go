@@ -14,7 +14,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/theplant/luhn"
 	"github.com/vsevolod-ryzhov/gofermart/internal/model"
-	"github.com/vsevolod-ryzhov/gofermart/internal/repository"
 )
 
 var (
@@ -27,14 +26,25 @@ var (
 	rwMutex sync.RWMutex
 )
 
+type OrdersRepository interface {
+	GetUserOrders(ctx context.Context, userID int) (*model.UserDisplayOrders, error)
+	GetOrder(ctx context.Context, orderID int) (*model.UserOrder, error)
+	AddOrder(ctx context.Context, orderID, userID int) error
+	GetUserBalanceInfo(ctx context.Context, userID int) *model.User
+	GetPendingOrders(ctx context.Context) (*model.UserOrders, error)
+	UpdateOrderStatus(ctx context.Context, userID, orderID int, status string, accrual float64) error
+	CreateWithdrawal(ctx context.Context, userID, orderID int, sumFloat float64) error
+	GetUserWithdrawals(ctx context.Context, userID int) (*model.Withdrawals, error)
+}
+
 type OrdersService struct {
-	repo        *repository.PostgresRepository
+	repo        OrdersRepository
 	accrualPort string
 	client      *resty.Client
 	worker      *OrderWorker
 }
 
-func NewOrdersService(repo *repository.PostgresRepository, accrualPort string) *OrdersService {
+func NewOrdersService(repo OrdersRepository, accrualPort string) *OrdersService {
 	service := &OrdersService{
 		repo:        repo,
 		accrualPort: accrualPort,
