@@ -7,8 +7,12 @@ import (
 	"time"
 )
 
+type OrdersProcessor interface {
+	ProcessPendingOrders() error
+}
+
 type OrderWorker struct {
-	ordersService *OrdersService
+	ordersService OrdersProcessor
 	interval      time.Duration
 	workers       int
 	mu            sync.RWMutex
@@ -16,7 +20,7 @@ type OrderWorker struct {
 	wg            sync.WaitGroup
 }
 
-func NewOrderWorker(ordersService *OrdersService, interval time.Duration, workers int) *OrderWorker {
+func NewOrderWorker(ordersService OrdersProcessor, interval time.Duration, workers int) *OrderWorker {
 	return &OrderWorker{
 		ordersService: ordersService,
 		interval:      interval,
