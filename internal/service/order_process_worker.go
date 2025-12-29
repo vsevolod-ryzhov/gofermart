@@ -8,7 +8,7 @@ import (
 )
 
 type OrdersProcessor interface {
-	ProcessPendingOrders() error
+	ProcessPendingOrders(ctx context.Context) error
 }
 
 type OrderWorker struct {
@@ -83,7 +83,7 @@ func (w *OrderWorker) worker(ctx context.Context, id int) {
 			}
 
 			log.Printf("Worker %d processing orders...", id)
-			err := w.ordersService.ProcessPendingOrders()
+			err := w.ordersService.ProcessPendingOrders(ctx)
 			if err != nil {
 				log.Printf("Worker %d error processing orders: %v", id, err)
 			} else {

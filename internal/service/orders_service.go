@@ -14,6 +14,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/theplant/luhn"
 	"github.com/vsevolod-ryzhov/gofermart/internal/model"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -103,7 +104,7 @@ func (o *OrdersService) GetUserBalanceInfo(ctx context.Context, userID int) (*mo
 	return user, nil
 }
 
-func (o *OrdersService) ProcessPendingOrders() error {
+func (o *OrdersService) ProcessPendingOrders(ctx context.Context) error {
 	o.mutex.Lock()
 	orders, err := o.repo.GetPendingOrders(context.Background())
 	o.mutex.Unlock()
@@ -116,23 +117,59 @@ func (o *OrdersService) ProcessPendingOrders() error {
 		return nil
 	}
 
-	for _, order := range *orders {
-		err := o.processOrder(order)
-		if err != nil {
-			fmt.Println(err)
-		}
+	g, ctx := errgroup.WithContext(ctx)
+	semaphore := make(chan struct{}, 10)
+
+	for i := range *orders {
+		order := (*orders)[i]
+
+		g.Go(func() error {
+			select {
+			case semaphore <- struct{}{}:
+				defer func() { <-semaphore }()
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
+			err := o.processOrder(ctx, order)
+			if err != nil {
+				o.mutex.Lock()
+				fmt.Printf("Failed to process order %d: %v\n", order.Number, err)
+				o.mutex.Unlock()
+				return fmt.Errorf("order %d: %w", order.Number, err)
+			}
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("failed to process pending orders: %w", err)
 	}
 
 	return nil
 }
 
-func (o *OrdersService) processOrder(order model.UserOrder) error {
+func (o *OrdersService) processOrder(ctx context.Context, order model.UserOrder) error {
 	client := resty.New()
 	url := fmt.Sprintf("%s/api/orders/%s", o.accrualPort, strconv.Itoa(order.Number))
 
 	resp, err := client.R().Get(url)
 	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		return fmt.Errorf("request failed for order %d: %w", order.Number, err)
+	}
+
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
 
 	respStatus := resp.StatusCode()
@@ -151,7 +188,7 @@ func (o *OrdersService) processOrder(order model.UserOrder) error {
 		return fmt.Errorf("failed to parse response for order %d: %w. Resp status %s. Original JSON: %s", order.Number, err, resp.Status(), jsonStr)
 	}
 
-	return o.repo.UpdateOrderStatus(context.Background(), order.UserID, order.Number, result.Status, result.Accrual)
+	return o.repo.UpdateOrderStatus(ctx, order.UserID, order.Number, result.Status, result.Accrual)
 }
 
 func (o *OrdersService) ValidateOrderNumber(orderNumber int) bool {

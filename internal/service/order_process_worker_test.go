@@ -15,8 +15,8 @@ type MockOrdersService struct {
 	mock.Mock
 }
 
-func (m *MockOrdersService) ProcessPendingOrders() error {
-	args := m.Called()
+func (m *MockOrdersService) ProcessPendingOrders(ctx context.Context) error {
+	args := m.Called(ctx)
 	return args.Error(0)
 }
 
