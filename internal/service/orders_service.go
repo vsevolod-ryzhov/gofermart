@@ -21,9 +21,6 @@ var (
 	ErrOrderAlreadyExists      = errors.New("order already exists")
 	ErrOrderAddedByAnotherUser = errors.New("order added by another user")
 	ErrUserInfoNotFound        = errors.New("user info not found")
-
-	mutex   sync.Mutex
-	rwMutex sync.RWMutex
 )
 
 type OrdersRepository interface {
@@ -42,6 +39,8 @@ type OrdersService struct {
 	accrualPort string
 	client      *resty.Client
 	worker      *OrderWorker
+	mutex       sync.Mutex
+	rwMutex     sync.RWMutex
 }
 
 func NewOrdersService(repo OrdersRepository, accrualPort string) *OrdersService {
@@ -94,9 +93,9 @@ func (o *OrdersService) AddOrder(ctx context.Context, userID, orderID int) error
 }
 
 func (o *OrdersService) GetUserBalanceInfo(ctx context.Context, userID int) (*model.User, error) {
-	rwMutex.Lock()
+	o.rwMutex.Lock()
 	user := o.repo.GetUserBalanceInfo(ctx, userID)
-	rwMutex.Unlock()
+	o.rwMutex.Unlock()
 	if user == nil {
 		return nil, ErrUserInfoNotFound
 	}
@@ -105,9 +104,9 @@ func (o *OrdersService) GetUserBalanceInfo(ctx context.Context, userID int) (*mo
 }
 
 func (o *OrdersService) ProcessPendingOrders() error {
-	mutex.Lock()
+	o.mutex.Lock()
 	orders, err := o.repo.GetPendingOrders(context.Background())
-	mutex.Unlock()
+	o.mutex.Unlock()
 
 	if err != nil {
 		return err
