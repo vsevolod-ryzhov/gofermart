@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -182,8 +184,6 @@ func (h *Handler) handleOrderUpload(res http.ResponseWriter, req *http.Request) 
 }
 
 func (h *Handler) handleGetOrders(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "application/json")
-
 	userID, ok := authMiddleware.GetUserID(req)
 	if !ok {
 		authMiddleware.RespondWithJSONError(res, http.StatusUnauthorized, "Unauthorized")
@@ -201,17 +201,22 @@ func (h *Handler) handleGetOrders(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := json.NewEncoder(res).Encode(orders); err != nil {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(orders); err != nil {
 		authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
 		return
 	}
 
+	res.Header().Set("Content-Type", "application/json")
+
 	res.WriteHeader(http.StatusOK)
+
+	if _, err := buf.WriteTo(res); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
 }
 
 func (h *Handler) handleGetBalance(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "application/json")
-
 	userID, ok := authMiddleware.GetUserID(req)
 	if !ok {
 		authMiddleware.RespondWithJSONError(res, http.StatusUnauthorized, "Unauthorized")
@@ -224,12 +229,19 @@ func (h *Handler) handleGetBalance(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := json.NewEncoder(res).Encode(balance); err != nil {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(balance); err != nil {
 		authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
 		return
 	}
 
+	res.Header().Set("Content-Type", "application/json")
+
 	res.WriteHeader(http.StatusOK)
+
+	if _, err := buf.WriteTo(res); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
 }
 
 func (h *Handler) handleBalanceWithdraw(res http.ResponseWriter, req *http.Request) {
@@ -286,8 +298,6 @@ func (h *Handler) handleBalanceWithdraw(res http.ResponseWriter, req *http.Reque
 }
 
 func (h *Handler) handleWithdrawList(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "application/json")
-
 	userID, ok := authMiddleware.GetUserID(req)
 	if !ok {
 		authMiddleware.RespondWithJSONError(res, http.StatusUnauthorized, "Unauthorized")
@@ -305,12 +315,19 @@ func (h *Handler) handleWithdrawList(res http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	if err := json.NewEncoder(res).Encode(withdrawals); err != nil {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(withdrawals); err != nil {
 		authMiddleware.RespondWithJSONError(res, http.StatusInternalServerError, err.Error())
 		return
 	}
 
+	res.Header().Set("Content-Type", "application/json")
+
 	res.WriteHeader(http.StatusOK)
+
+	if _, err := buf.WriteTo(res); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
 }
 
 func (h *Handler) MakeHandler() *chi.Mux {
